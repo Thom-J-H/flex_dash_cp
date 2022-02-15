@@ -1,6 +1,8 @@
 # flex_dash_cp
 
-<p>The [Five Eyes](https://en.wikipedia.org/wiki/Five_Eyes) nations are Australia, Canada, New Zealand, the United Kingdom, and the United States. The Five Other nations for this comparison are Italy, Japan, Mexico, Norway, and Russia. We are looking at Life Expectancy and related concerns, using data from [Gapminder.org](https://www.gapminder.org/data/).</p>
+<p>
+  The [Five Eyes](https://en.wikipedia.org/wiki/Five_Eyes) nations are Australia, Canada, New Zealand, the United Kingdom, and the United States. The Five Other nations for this comparison are Italy, Japan, Mexico, Norway, and Russia. We are looking at Life Expectancy and related concerns, using data from [Gapminder.org](https://www.gapminder.org/data/).
+</p>
 
 End output result is the flexdashboard: [Fives Eyes vs. Five Other](https://rpubs.com/Thom_JH/five_eyes).
 
