@@ -1,0 +1,713 @@
+---
+title: 'Final Project Visualizations'
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: yes 
+    toc_float: yes
+  toc: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, 
+                      fig.fullwidth = TRUE, fig.align = "center")
+```
+
+## Libraries & Data
+
+```{r echo = TRUE}
+library(tidyverse)
+library(glue)
+library(here)
+library(visdat)
+library(skimr)
+library(plotly)
+library(reactable)
+
+load(here::here("data" , "tidy_data", "Hopkins_Final.RData"))
+
+```
+
+
+
+
+
+## Correlation Graphs
+
+
+### Five Eyes
+
+```{r}
+
+breaks_d <- seq(1955, 2020, by = 10)
+
+
+lm_graph_5ey <- five_eyes_dat %>% 
+  mutate(across(where(is.numeric), round, 2))%>%
+  ggplot( aes(x = year, 
+              y = life_expectancy, 
+              color = country, 
+              text = paste("Per Capita GDP: ", gdp_per_cap)) ) + 
+  geom_point() +
+  geom_smooth(method = "lm", 
+              se = TRUE, 
+              show.legend = FALSE) +
+  labs(title = "Five Eyes Nations",
+       y ="Life Expectancy", 
+       x = "Year + Per Capita GDP + Nation",
+       color = "Nation",
+       text = "Per Capita",
+       subtitle = "life_expectancy ~ per_cap_gdp + country + year") +
+  scale_x_continuous(breaks = breaks_d) +  
+  theme_minimal()
+#lm_graph_5ey
+
+lm_graph_5ey <- plotly::ggplotly(lm_graph_5ey)
+
+
+
+lm_graph_5ey 
+
+
+
+```
+
+
+### Five Other
+
+```{r}
+
+lm_graph_5ot <- five_other_dat %>%
+  mutate(across(where(is.numeric), round, 2))%>%
+  ggplot( aes(x = year, 
+              y = life_expectancy,  
+              color = country, 
+              text = paste("Per Capita GDP: ", gdp_per_cap)) ) + 
+  geom_point() +
+  geom_smooth(method = "lm", 
+              se = TRUE, 
+              show.legend = FALSE) +
+  labs(title = "Five Other Nations",
+       y ="Life Expectancy", 
+        x = "Year + Per Capita GDP + Nation",
+       color = "Nation",
+       text = "Per Capita",
+       subtitle = "life_expectancy ~ per_cap_gdp + country + year") +
+  scale_x_continuous(breaks = breaks_d)  +  
+  theme_minimal()
+  
+plotly::ggplotly(lm_graph_5ot)
+```
+
+
+
+
+
+## Linear Models
+
+
+### Five Eyes
+
+```{r}
+
+fm_5graphs <- as.formula("life_expectancy ~ gdp_per_cap + country + year")
+
+my_mod_5ey <- lm(formula = fm_5graphs , data = five_eyes_dat)
+
+
+
+
+clean_my_mod_5ey <- broom::tidy(my_mod_5ey, 
+                                conf.int = TRUE,  
+                                conf.level = 0.95) %>%
+  mutate(across(where(is.numeric), round, 4))
+
+
+
+clean_my_mod_5ey %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+
+
+```
+
+
+
+
+
+### Five Other
+
+```{r}
+my_mod_5ot <- lm(formula = fm_5graphs , data = five_other_dat)
+clean_my_mod_5ot  <- broom::tidy(my_mod_5ot , 
+                                 conf.int = TRUE,  
+                                 conf.level = 0.95) %>%
+  mutate(across(where(is.numeric), round, 4))
+
+clean_my_mod_5ot %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+```
+
+
+## Choropleth Overviews
+
+
+```{r}
+gapminder_map <- gapminder %>%
+  filter(year == 1960 | year == 2016) %>% tibble()
+
+
+
+
+gapminder_map$country <- recode(gapminder_map$country,
+                                `Macedonia, FYR`  = "North Macedonia",
+                                `West Bank and Gaza` = "Palestine",
+                                `Swaziland` =  "Eswatini") 
+
+gapminder_map <- gapminder_map %>% 
+  select(year, country, life_expectancy)
+
+
+gapminder_map_1960 <-  gapminder_map %>% 
+  filter(year == 1960) %>% 
+  complete(country = world_map2_ISO$country, 
+           fill = (list(water = NA )) ) %>%
+  left_join(world_map2_ISO, by = "country") %>%
+  replace_na(list(year = 1960))
+
+gapminder_map_2016 <-  gapminder_map %>% 
+  filter(year == 2016) %>% 
+  complete(country = world_map2_ISO$country, 
+           fill = (list(water = NA )) ) %>%
+  left_join(world_map2_ISO, by = "country") %>%
+  replace_na(list(year = 2016))
+
+
+
+```
+
+
+### Global Life Expectancy 2016
+
+```{r}
+map_2016 <- gapminder_map_2016 %>%
+  filter(code_3 != "ATA") %>%
+  ggplot(aes(x = long, 
+             y = lat, 
+             group = group, 
+             label = country)) +
+  geom_polygon(aes(fill = life_expectancy) )+
+  scale_fill_viridis_c(option = "C") +
+  labs(fill = "",
+       title = "Life Expectancy (2016)") +
+  theme_void() 
+
+plotly::ggplotly(map_2016)
+
+
+```
+
+
+
+
+###  Global Life Expectancy 1960
+
+```{r}
+map_1960 <- gapminder_map_1960 %>%
+  filter(code_3 != "ATA") %>%
+  ggplot(aes(x = long, 
+             y = lat, 
+             group = group, 
+             label = country)) +
+  geom_polygon(aes(fill = life_expectancy) )+
+  scale_fill_viridis_c(option = "C") +
+  labs(fill = "",
+       title = "Life Expectancy (1960)") +
+  theme_void() 
+
+
+plotly::ggplotly(map_1960 )
+```
+
+
+
+
+
+
+
+
+
+
+
+## ANOVA Tests for Life Expectancy
+
+
+### Five Eyes 2000s
+
+```{r}
+
+five_eyes_2000s <- five_eyes_dat %>%
+  filter(decade == "2000s")
+
+anova_one  <- aov(life_expectancy ~ country,  five_eyes_2000s )
+
+results_one  <- TukeyHSD(anova_one) %>% 
+  broom::tidy() %>% dplyr::arrange(desc(abs(estimate))) %>%
+  mutate(across(where(is.numeric), round, 4))
+
+results_one$decade <- "2000s"
+
+
+```
+
+
+
+### Five Eyes 1960s
+
+```{r}
+
+five_eyes_1960s <- five_eyes_dat %>%
+  filter(decade == "1960s")
+
+anova_two <- aov(life_expectancy ~ country,  five_eyes_1960s  )
+
+results_two <- TukeyHSD(anova_two ) %>% 
+  broom::tidy() %>% dplyr::arrange(desc(abs(estimate))) %>%
+  mutate(across(where(is.numeric), round, 4))
+
+results_two$decade <- "1960s"
+
+
+```
+
+
+
+
+```{r}
+results_five_eyes <- results_one %>% 
+  bind_rows(results_two) %>% 
+  select(decade, everything())
+
+
+results_five_eyes  %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+```
+
+
+```{r}
+
+results_five_eyes %>% 
+ggplot(aes(estimate, contrast , color = contrast)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  conf.low, xmax = conf.high)) +
+  geom_vline(xintercept = 0, alpha = 0.3, linetype = 2) +
+  facet_wrap(~decade) +
+  labs(title = "Life Expectancy Means: 1960s & 2000s",
+       subtitle = "ANOVA Results for Five Eyes Nations. 95% CI.",
+       y = "", x = "Mean Difference Estimate") +
+  guides(color = "none") +
+  theme(axis.text.y = element_text(size=7))
+
+
+gg <- results_five_eyes  %>% 
+ggplot(aes(estimate, contrast , 
+           color = contrast,
+           text = paste(contrast, "<br /> Diff:", estimate,"<br />", 
+                        "CI:", conf.low, conf.high))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  conf.low, xmax = conf.high)) +
+  geom_vline(xintercept = 0, alpha = 0.3, linetype = 2) +
+  facet_wrap(~decade) +
+  labs(title = "Life Expectancy Means: 1960s & 2000s",
+       subtitle = "ANOVA Results for Five Eyes Nations. 95% CI.",
+       y = "", x = "Mean Difference Estimate") +
+  guides(color = "none") +
+  theme(axis.text.y = element_text(size=7))
+
+plotly::ggplotly(gg, tooltip = c("text" ))
+
+
+
+
+```
+
+
+
+
+
+
+
+### Five Others 2000s
+
+
+```{r}
+five_ot_2000s <- five_other_dat %>%
+  filter(decade == "2000s")
+
+anova_three <- aov(life_expectancy ~ country,  five_ot_2000s  )
+
+results_three <- TukeyHSD(anova_three ) %>% 
+  broom::tidy() %>% dplyr::arrange(desc(abs(estimate))) %>%
+  mutate(across(where(is.numeric), round, 4))
+
+
+results_three$decade <-  "2000s"
+
+
+```
+
+
+
+### Five Others 1960s
+
+
+```{r}
+
+five_ot_1960s <- five_other_dat %>%
+  filter(decade == "1960s")
+
+anova_four <- aov(life_expectancy ~ country,  five_ot_1960s )
+
+results_four <- TukeyHSD(anova_four ) %>% 
+  broom::tidy() %>% dplyr::arrange(desc(abs(estimate))) %>%
+  mutate(across(where(is.numeric), round, 4))
+
+
+results_four$decade <-  "1960s"
+
+
+```
+
+
+
+
+
+
+```{r}
+
+results_five_ot <- results_three %>% 
+  bind_rows(results_four) %>% 
+  select(decade, everything()) 
+
+
+results_five_ot %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+
+
+
+```
+
+
+
+```{r}
+
+results_five_ot %>% 
+ggplot(aes(estimate, contrast , color = contrast)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  conf.low, xmax = conf.high)) +
+  geom_vline(xintercept = 0, alpha = 0.3, linetype = 2) +
+  facet_wrap(~decade) +
+  labs(title = "Life Expectancy Means: 1970s & 2000s",
+       subtitle = "ANOVA Results for Five Other Nations. 95% CI.",
+       y = "", x = "Mean Difference Estimate") +
+  guides(color = "none") +
+  theme(axis.text.y = element_text(size=7))
+
+
+```
+
+
+
+## Enery Usage Per Capita
+
+
+### General Trends
+
+
+```{r}
+
+energy_big_ten <- energy_tidy %>% 
+  filter(country %in% big_ten)
+
+energy_big_ten <- energy_big_ten %>% 
+  left_join(big_ten_dat, by =c("country", "year", "decade") )
+
+energy_big_ten <- energy_big_ten %>% 
+  select(country, year, energy, life_expectancy) %>%
+  filter(year != 2015) %>% 
+  filter(year >= 1990)
+  
+
+
+energy_big_ten %>% 
+  plot_ly(x = ~year, 
+          y = ~energy, 
+          text = ~paste("Nation:", country,
+                        "<br />Energy:", energy,
+                        "<br />Year:", year),
+          mode = "lines+markers",
+          color = ~country, colors = "Set3",
+          showlegend = TRUE ) %>%
+  layout(
+    xaxis = list(title = "Year"),
+    yaxis = list(title = "Energy Usage Per Capita"),
+    title = "Big Ten: Energy Usage Per Capita (Gapminder Data)" )
+
+
+
+```
+
+
+### Life Expectancy vs. Energy Usage
+
+
+```{r}
+energy_big_ten %>% 
+  plot_ly(x = ~energy, 
+          y = ~life_expectancy, 
+          text = ~paste("Nation:", country,
+                        "<br />Energy:", energy,
+                        "<br />Life Expectancy:", life_expectancy),
+          size = 25) %>%
+  add_markers(frame = ~year, ids = ~country, 
+              color = ~country, colors = "Set3",
+              showlegend = TRUE,
+) %>%
+  layout(
+    xaxis = list(title = "Energy Usage Per Capita"),
+    yaxis = list(title = "Life Expectancy"),
+    title = "Life Expectancy vs. Energy Usage Per Capita (Gapminder Data)" )
+
+
+```
+
+
+
+## Energy Choropleths
+
+
+
+### Energy 2014
+
+```{r}
+
+energy_2014_all  <- energy_tidy  %>%
+  filter(year == 2014) %>% 
+  complete(country = world_map2_ISO$country, 
+           fill = (list(energy = NA )) ) %>%
+  left_join(world_map2_ISO, by = "country") %>%
+  replace_na(list(year = 2014))
+
+energy_2014_map  <- energy_2014_all   %>%
+  filter(code_3 != "ATA") %>%
+  ggplot(aes(x = long, 
+             y = lat, 
+             group = group, 
+             label = country)) +
+  geom_polygon(aes(fill = energy) )+
+  scale_fill_viridis_c(option = "C") +
+  labs(fill = "",
+       title = "Global: Energy Usage Per captia for 2014") +
+  theme_void()
+
+plotly::ggplotly(energy_2014_map )
+
+```
+
+
+### Energy 1990
+
+```{r}
+energy_1990_all  <- energy_tidy  %>%
+  filter(year == 1990) %>% 
+  complete(country = world_map2_ISO$country, 
+           fill = (list(energy = NA )) ) %>%
+  left_join(world_map2_ISO, by = "country") %>%
+  replace_na(list(year = 1990))
+
+energy_1990_map  <- energy_1990_all   %>%
+  filter(code_3 != "ATA") %>%
+  ggplot(aes(x = long, 
+             y = lat, 
+             group = group, 
+             label = country)) +
+  geom_polygon(aes(fill = energy) )+
+  scale_fill_viridis_c(option = "C") +
+  labs(fill = "",
+       title = "Global: Energy Usage Per captia for 1990") +
+  theme_void()
+
+plotly::ggplotly(energy_1990_map )
+
+```
+
+
+
+
+
+
+## Other Versions
+
+
+### Five Eyes Anova 2000s
+```{r}
+
+anova_one_plot <- results_one %>%
+  ggplot(aes(estimate, contrast , color = contrast)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  conf.low, xmax = conf.high)) +
+  geom_vline(xintercept = 0, alpha = 0.3, linetype = 2) +
+  labs(title = "Five Eyes in the 2000s: Life Expectancy",
+       subtitle = "95% CI.  ANOVA Results.",
+       y = "", x = "Mean Difference Estimate") +
+  guides(color = "none") +
+  theme(axis.text.y = element_text(size=7))
+
+
+anova_one_plot 
+
+```
+
+
+
+
+
+### Five Eyes Anova 1960s
+
+```{r}
+anova_two_plot <-  results_two %>%
+  ggplot(aes(estimate, contrast , color = contrast)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  conf.low, xmax = conf.high)) +
+  geom_vline(xintercept = 0, alpha = 0.3, linetype = 2) +
+  labs(title = "Five Eyes in the 1960s: Life Expectancy",
+       subtitle = "95% CI.  ANOVA Results.",
+       y = "", x = "Mean Difference Estimate") +
+  guides(color = "none") +
+  theme(axis.text.y = element_text(size=7))
+
+
+anova_two_plot 
+
+
+```
+
+
+
+
+
+### Five Other Anova 2000s
+
+```{r}
+
+anova_three_plot <- results_three %>%
+  ggplot(aes(estimate, contrast , color = contrast)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  conf.low, xmax = conf.high)) +
+  geom_vline(xintercept = 0, alpha = 0.3, linetype = 2) +
+  labs(title = "Five Others in the 2000s: Life Expectancy",
+       subtitle = "95% CI.  ANOVA Results.",
+       y = "", x = "Mean Difference Estimate") +
+  guides(color = "none") +
+  theme(axis.text.y = element_text(size=7))
+
+
+anova_three_plot 
+
+```
+
+
+
+
+
+### Five Other Anova 1960s
+
+```{r}
+    
+anova_four_plot <- results_four %>%
+  ggplot(aes(estimate, contrast , color = contrast)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin =  conf.low, xmax = conf.high)) +
+  geom_vline(xintercept = 0, alpha = 0.3, linetype = 2) +
+  labs(title = "Five Other in the 1960s: Life Expectancy",
+       subtitle = "95% CI.  ANOVA Results.",
+       y = "", x = "Mean Difference Estimate") +
+  guides(color = "none") +
+  theme(axis.text.y = element_text(size=7))
+
+anova_four_plot 
+```
+
+
+
+
+
+
+### Five Eyes Anova 2000s dat
+
+```{r}
+results_one %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+
+
+```
+
+
+### Five Eyes Anova 1960s dat
+
+```{r}
+results_two %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+```
+
+
+
+
+
+### Five Other Anova 2000s dat
+```{r}
+
+results_three  %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+```
+
+
+### Five Other Anova 1960s dat
+
+```{r}
+results_four %>%
+  reactable(., highlight = TRUE, 
+            striped = TRUE,
+            theme = reactableTheme(
+              stripedColor = "#EDEDED",
+              highlightColor = "#FFE4E1") ) 
+```
+
+
